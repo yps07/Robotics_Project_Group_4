@@ -4,7 +4,20 @@ import os
 import json
 import numpy as np
 from dm_control import suite
-from environment import ARM_JOINTS, ARM_ACTUATORS, GEAR_RATIOS, JOINT_LIMITS, VEL_LIMITS
+try:
+    from .environment import (
+        ARM_JOINTS,
+        ARM_ACTUATORS,
+        GEAR_RATIOS,
+        JOINT_LIMITS,
+    )
+except ImportError:  # Support running this file directly from dataset/.
+    from environment import (
+        ARM_JOINTS,
+        ARM_ACTUATORS,
+        GEAR_RATIOS,
+        JOINT_LIMITS,
+    )
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), "data")
 
@@ -18,6 +31,7 @@ def inspect():
     info["nv"] = int(model.nv)
     info["nu"] = int(model.nu)
     info["timestep"] = float(model.opt.timestep)
+    info["control_timestep"] = float(env.control_timestep())
     info["arm_joints"] = []
     for i in ARM_JOINTS:
         info["arm_joints"].append({
@@ -26,7 +40,11 @@ def inspect():
             "type": int(model.jnt_type[i]),
             "qposadr": int(model.jnt_qposadr[i]),
             "dofadr": int(model.jnt_dofadr[i]),
-            "range": [float(x) for x in model.jnt_range[i]],
+            "range": (
+                [float(x) for x in model.jnt_range[i]]
+                if model.jnt_limited[i]
+                else None
+            ),
             "limited": bool(model.jnt_limited[i]),
             "damping": float(model.dof_damping[i]),
             "armature": float(model.dof_armature[i]),
@@ -41,13 +59,15 @@ def inspect():
             "ctrlrange": [float(x) for x in model.actuator_ctrlrange[i]],
         })
     info["gear_ratios"] = [float(x) for x in GEAR_RATIOS]
-    info["joint_limits"] = JOINT_LIMITS.tolist()
-    info["vel_limits"] = VEL_LIMITS.tolist()
+    info["joint_limits"] = [
+        [float(x) if np.isfinite(x) else None for x in limits]
+        for limits in JOINT_LIMITS
+    ]
 
     os.makedirs(OUT_DIR, exist_ok=True)
     path = os.path.join(OUT_DIR, "robot_info.json")
     with open(path, "w") as f:
-        json.dump(info, f, indent=2)
+        json.dump(info, f, indent=2, allow_nan=False)
     print(json.dumps(info, indent=2))
     print(f"\nSaved to {path}")
 

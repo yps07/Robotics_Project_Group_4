@@ -1,0 +1,25 @@
+{
+  "best_epoch": 119,
+  "best_val_loss": 0.001443601493141614,
+  "epochs_run": 120,
+  "stopped_early": false,
+  "config": {
+    "max_epochs": 120,
+    "patience": 15,
+    "min_delta": 1e-06,
+    "grad_clip_norm": 10.0,
+    "device": "cpu",
+    "name": "tanh_128_128_wd1e-5",
+    "hidden_sizes": [
+      128,
+      128
+    ],
+    "activation": "tanh",
+    "learning_rate": 0.001,
+    "weight_decay": 1e-05,
+    "seed": 42,
+    "fraction": 0.3,
+    "training_samples": 6000,
+    "batch_size": 256
+  }
+}

@@ -1,19 +1,102 @@
 {
   "task": "dm_control.manipulator.bring_ball",
+  "data_model": "bring_ball MJCF; four arm joints actuated; gripper hinges removed so finger bodies are rigidly attached to the wrist; collision geoms disabled for free-space inverse dynamics",
   "seed": 42,
-  "features": ["q[4]", "qdot[4]", "qddot[4]"],
-  "target": "tau[4]",
-  "units": {"q": "rad", "qdot": "rad/s", "qddot": "rad/s^2", "tau": "N*m"},
-  "timestep_s": 0.001,
-  "excitation": ["random", "sinusoidal", "chirp"],
+  "arm_joints": [
+    "arm_root",
+    "arm_shoulder",
+    "arm_elbow",
+    "arm_wrist"
+  ],
+  "raw_state_features": [
+    "q[4]",
+    "qdot[4]",
+    "qddot[4]"
+  ],
+  "mlp_feature_encoding": "[sin(q_root), cos(q_root), q_shoulder, q_elbow, q_wrist, qdot[4], qddot[4]]",
+  "mlp_feature_dim": 13,
+  "target": "tau[4] (physical actuator generalized forces)",
+  "units": {
+    "q": "rad",
+    "qdot": "rad/s",
+    "qddot": "rad/s^2",
+    "tau": "N*m",
+    "action": "normalized actuator control in [-1, 1]",
+    "time_s": "s from the start of each episode"
+  },
+  "physics_timestep_s": 0.001,
+  "control_timestep_s": 0.01,
+  "sample_timestep_s": 0.01,
+  "physics_substeps_per_sample": 10,
+  "excitation": [
+    "random",
+    "sinusoidal",
+    "chirp"
+  ],
+  "excitation_timebase": "control_timestep_s",
   "train_action_amplitude": 0.35,
   "ood_action_amplitude": 0.65,
-  "contact_handling": "ball moved outside workspace before forward dynamics",
+  "excitation_frequency_hz": {
+    "train_sinusoidal": [
+      0.1,
+      1.0
+    ],
+    "train_chirp_f0": [
+      0.05,
+      0.2
+    ],
+    "train_chirp_f1": [
+      0.5,
+      2.0
+    ],
+    "ood_sinusoidal": [
+      0.75,
+      2.5
+    ],
+    "ood_chirp_f0": [
+      0.5,
+      1.0
+    ],
+    "ood_chirp_f1": [
+      2.0,
+      4.0
+    ]
+  },
+  "ood_definition": "higher action amplitude/frequencies; every accepted row has at least one q, qdot, or qddot component outside the empirical training min/max",
+  "gear_ratios": [
+    12.0,
+    8.0,
+    4.0,
+    2.0
+  ],
+  "contact_handling": "collision geoms disabled; ncon recorded and asserted to be zero",
+  "sample_metadata": [
+    "action[4]",
+    "time_s",
+    "episode_id",
+    "mode",
+    "ncon"
+  ],
+  "split_sizes": {
+    "train": 20000,
+    "val": 2000,
+    "test": 2000,
+    "ood": 2000
+  },
+  "episodes_per_split": {
+    "train": 40,
+    "val": 10,
+    "test": 10,
+    "ood": 10
+  },
+  "episode_sampling": "accepted samples are spread over each episode; splits target 40 training episodes and 10 episodes per evaluation split",
   "rejection_filters": {
     "joint_limit_margin_rad": 0.05,
     "max_abs_qdot": 10.0,
     "max_abs_qddot_train": 1200.0,
-    "max_abs_qddot_ood": 1800.0
+    "max_abs_qddot_ood": 1800.0,
+    "contacts": 0
   },
-  "validation_command": "python -m src.validate_data"
+  "measurement_noise": "none",
+  "validation_command": "python -m dataset.validate_data"
 }

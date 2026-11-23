@@ -4,7 +4,10 @@ import os
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from preprocess import load_stats, normalize
+try:
+    from .preprocess import encode_features, load_stats, normalize
+except ImportError:  # Support running this file directly from dataset/.
+    from preprocess import encode_features, load_stats, normalize
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
@@ -14,7 +17,7 @@ class InverseDynamicsDataset(Dataset):
         path = os.path.join(DATA_DIR, f"{split}.npz")
         d = np.load(path)
         q = d["q"]; qd = d["qdot"]; qdd = d["qddot"]; tau = d["tau"]
-        X = np.concatenate([q, qd, qdd], axis=1).astype(np.float32)
+        X = encode_features(q, qd, qdd).astype(np.float32)
         Y = tau.astype(np.float32)
         if stats is None:
             stats = load_stats()

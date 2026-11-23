@@ -1,129 +1,336 @@
-"""Collect inverse-dynamics datasets for the manipulator arm.
+"""Collect reproducible, contact-free inverse-dynamics data for the arm.
 
-Each sample: X = [q(4), qdot(4), qddot(4)] (12), y = tau(4).
-Also stores q, qdot, qddot, tau separately.
+Each sample contains the four arm coordinates, their velocities and
+accelerations, physical actuator torques, normalized controls, and provenance
+fields. The model is derived from dm_control's manipulator/bring_ball MJCF;
+the gripper is rigidly attached to the wrist and collision geoms are disabled.
 """
 
-import os
 import argparse
 import json
+import os
+
 import numpy as np
-from dm_control import suite
-from environment import (
-    ARM_JOINTS, ARM_ACTUATORS, GEAR_RATIOS, JOINT_LIMITS, VEL_LIMITS,
-    load_env, get_arm_state, get_arm_torque, get_arm_acc, move_ball_far,
-    set_arm_state,
-)
+
+try:  # Package invocation: python -m dataset.collect_data
+    from .environment import (
+        ARM_JOINT_NAMES,
+        CONTROL_TIMESTEP_S,
+        GEAR_RATIOS,
+        JOINT_LIMITS,
+        MAX_ABS_QDOT_FOR_DATA,
+        N_ARM,
+        OOD_MAX_ABS_QDDOT_FOR_DATA,
+        TRAIN_MAX_ABS_QDDOT_FOR_DATA,
+        get_arm_acc,
+        get_arm_state,
+        get_arm_torque,
+        load_dynamics_env,
+        move_ball_far,
+        set_arm_state,
+    )
+    from .preprocess import compute_stats, save_stats
+except ImportError:  # Direct invocation from the dataset directory
+    from environment import (
+        ARM_JOINT_NAMES,
+        CONTROL_TIMESTEP_S,
+        GEAR_RATIOS,
+        JOINT_LIMITS,
+        MAX_ABS_QDOT_FOR_DATA,
+        N_ARM,
+        OOD_MAX_ABS_QDDOT_FOR_DATA,
+        TRAIN_MAX_ABS_QDDOT_FOR_DATA,
+        get_arm_acc,
+        get_arm_state,
+        get_arm_torque,
+        load_dynamics_env,
+        move_ball_far,
+        set_arm_state,
+    )
+    from preprocess import compute_stats, save_stats
+
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+EPISODE_LENGTH = 1000
+SPLIT_NAMES = ("train", "val", "test", "ood")
+SAMPLE_KEYS = (
+    "q",
+    "qdot",
+    "qddot",
+    "tau",
+    "action",
+    "time_s",
+    "episode_id",
+    "mode",
+    "ncon",
+)
 
 
 def make_action_random(t, rng, scale=0.35):
-    return rng.uniform(-scale, scale, size=4)
+    del t
+    return rng.uniform(-scale, scale, size=N_ARM)
 
 
 def make_action_sinusoidal(t, rng, freqs, phases, amps):
-    a = amps * np.sin(2 * np.pi * freqs * t + phases)
-    return np.clip(a, -1.0, 1.0)
+    del rng
+    return np.clip(amps * np.sin(2 * np.pi * freqs * t + phases), -1.0, 1.0)
 
 
-def make_action_chirp(t, rng, f0, f1, T, phases, amplitude=0.35):
-    f = f0 + (f1 - f0) * (t / T)
-    a = np.sin(2 * np.pi * (f0 * t + (f1 - f0) * t * t / (2 * T)) + phases)
-    return amplitude * np.clip(a, -1.0, 1.0)
+def make_action_chirp(t, rng, f0, f1, duration, phases, amplitude=0.35):
+    del rng
+    duration = max(float(duration), np.finfo(float).eps)
+    phase = 2 * np.pi * (
+        f0 * t + (f1 - f0) * t * t / (2 * duration)
+    ) + phases
+    return amplitude * np.sin(phase)
 
 
-def collect_episode(env, mode, T, rng, freqs=None, phases=None, amps=None, f0=0.1, f1=1.0, action_scale=0.35):
-    """Collect T samples from one episode. Returns arrays (T,4) for q,qd,qdd,tau."""
+def collect_episode(
+    env,
+    mode,
+    n_steps,
+    rng,
+    freqs=None,
+    phases=None,
+    amps=None,
+    f0=0.1,
+    f1=1.0,
+    action_scale=0.35,
+):
+    """Collect one episode; times are in seconds at the control-step rate."""
     physics = env.physics
+    dt = float(env.control_timestep())
     env.reset()
     move_ball_far(physics)
-    # initial state
-    q0 = np.zeros(4)
-    qd0 = np.zeros(4)
-    set_arm_state(physics, q0, qd0)
+    set_arm_state(physics, np.zeros(N_ARM), np.zeros(N_ARM))
     physics.forward()
 
-    qs, qds, qdds, taus = [], [], [], []
-    for step in range(T):
-        t = step * 0.001  # timestep
+    rows = {key: [] for key in SAMPLE_KEYS if key not in ("episode_id",)}
+    for step in range(n_steps):
+        t = step * dt
         if mode == "random":
-            a_arm = make_action_random(t, rng, scale=action_scale)
+            action = make_action_random(t, rng, scale=action_scale)
         elif mode == "sinusoidal":
-            a_arm = make_action_sinusoidal(t, rng, freqs, phases, amps)
+            action = make_action_sinusoidal(t, rng, freqs, phases, amps)
         elif mode == "chirp":
-            a_arm = make_action_chirp(t, rng, f0, f1, T * 0.001, phases, action_scale)
+            action = make_action_chirp(
+                t, rng, f0, f1, n_steps * dt, phases, action_scale
+            )
         else:
-            raise ValueError(mode)
-        # full action including gripper (keep gripper neutral)
-        action = np.zeros(5)
-        action[:4] = a_arm
-        action[4] = 0.0
+            raise ValueError(f"Unknown excitation mode: {mode}")
 
-        # step
-        ts = env.step(action)
-        # move ball far to avoid contacts, recompute dynamics
-        move_ball_far(physics)
+        env.step(action)
+        # Recompute state derivatives at the saved state/control.
         physics.forward()
+        if physics.data.ncon != 0:
+            raise RuntimeError(
+                "The isolated dynamics model produced a contact; refusing to "
+                "save a contact-contaminated sample."
+            )
 
-        q, qd = get_arm_state(physics)
-        # Hinge angles are periodic. Store the root angle canonically so it
-        # cannot drift to many revolutions during a long rollout.
+        q, qdot = get_arm_state(physics)
+        # The root joint is periodic; use one canonical representative.
         q[0] = (q[0] + np.pi) % (2 * np.pi) - np.pi
+        qddot = get_arm_acc(physics)
         tau = get_arm_torque(physics)
-        qdd = get_arm_acc(physics)
 
-        qs.append(q.copy())
-        qds.append(qd.copy())
-        qdds.append(qdd.copy())
-        taus.append(tau.copy())
+        rows["q"].append(q)
+        rows["qdot"].append(qdot)
+        rows["qddot"].append(qddot)
+        rows["tau"].append(tau)
+        rows["action"].append(np.asarray(action, dtype=np.float64))
+        rows["time_s"].append((step + 1) * dt)
+        rows["mode"].append(mode)
+        rows["ncon"].append(int(physics.data.ncon))
 
-    return (np.array(qs), np.array(qds), np.array(qdds), np.array(taus))
+    return {
+        key: np.asarray(value)
+        for key, value in rows.items()
+    }
 
 
-def collect_split(n_samples, modes, rng, ood=False):
-    """Collect ~n_samples across modes."""
-    qs_all, qds_all, qdds_all, taus_all = [], [], [], []
-    collected = 0
-    episode_len = 1000
-    while collected < n_samples:
-        mode = rng.choice(modes)
-        if mode == "sinusoidal":
-            freqs = rng.uniform(0.1, 1.0, size=4)
-            phases = rng.uniform(0, 2 * np.pi, size=4)
-            # OOD uses stronger excitation, but remains a valid simulator
-            # rollout. It must never be fabricated by scaling inputs only.
-            amp = 0.65 if ood else 0.35
-            amps = rng.uniform(0.15, amp, size=4)
-            kw = dict(freqs=freqs, phases=phases, amps=amps)
-        elif mode == "chirp":
-            phases = rng.uniform(0, 2 * np.pi, size=4)
-            kw = dict(phases=phases, f0=rng.uniform(0.05, 0.2), f1=rng.uniform(0.5, 2.0))
-        else:
-            kw = {}
-        env = load_env(random_seed=int(rng.integers(0, 10000)))
-        # Collect extra samples because boundary/impulse samples are rejected
-        # below rather than silently entering the learning set.
-        T = episode_len
-        q, qd, qdd, tau = collect_episode(
-            env, mode, T, rng, action_scale=(0.65 if ood else 0.35), **kw
+def _valid_samples(episode, ood, ood_bounds=None):
+    q = episode["q"]
+    qdot = episode["qdot"]
+    qddot = episode["qddot"]
+    lower = JOINT_LIMITS[1:, 0] + 0.05
+    upper = JOINT_LIMITS[1:, 1] - 0.05
+    max_abs_qddot = (
+        OOD_MAX_ABS_QDDOT_FOR_DATA
+        if ood
+        else TRAIN_MAX_ABS_QDDOT_FOR_DATA
+    )
+
+    valid = np.all(q[:, 1:] >= lower, axis=1)
+    valid &= np.all(q[:, 1:] <= upper, axis=1)
+    valid &= np.max(np.abs(qdot), axis=1) < MAX_ABS_QDOT_FOR_DATA
+    valid &= np.max(np.abs(qddot), axis=1) < max_abs_qddot
+    valid &= episode["ncon"] == 0
+    if ood and ood_bounds is not None:
+        features = np.concatenate((q, qdot, qddot), axis=1)
+        lower, upper = ood_bounds
+        valid &= np.any(
+            (features < lower[None, :]) | (features > upper[None, :]),
+            axis=1,
         )
-        margin = 0.05
-        valid = np.all(q[:, 1:] >= (JOINT_LIMITS[1:, 0] + margin), axis=1)
-        valid &= np.all(q[:, 1:] <= (JOINT_LIMITS[1:, 1] - margin), axis=1)
-        valid &= np.max(np.abs(qd), axis=1) < 10.0
-        valid &= np.max(np.abs(qdd), axis=1) < (1800.0 if ood else 1200.0)
-        q, qd, qdd, tau = q[valid], qd[valid], qdd[valid], tau[valid]
-        qs_all.append(q)
-        qds_all.append(qd)
-        qdds_all.append(qdd)
-        taus_all.append(tau)
-        collected += len(q)
-    q = np.concatenate(qs_all, axis=0)[:n_samples]
-    qd = np.concatenate(qds_all, axis=0)[:n_samples]
-    qdd = np.concatenate(qdds_all, axis=0)[:n_samples]
-    tau = np.concatenate(taus_all, axis=0)[:n_samples]
-    return q, qd, qdd, tau
+    return valid
+
+
+def collect_split(
+    n_samples,
+    modes,
+    rng,
+    ood=False,
+    ood_bounds=None,
+    n_episodes=10,
+):
+    """Collect a split with samples balanced across independent episodes."""
+    if n_samples <= 0 or n_episodes <= 0:
+        raise ValueError("n_samples and n_episodes must both be positive.")
+    parts = {key: [] for key in SAMPLE_KEYS}
+    collected = 0
+    episode_id = 0
+    samples_per_episode = int(np.ceil(n_samples / n_episodes))
+    max_episodes = max(100, 20 * n_episodes)
+
+    while collected < n_samples or episode_id < n_episodes:
+        mode = str(rng.choice(modes))
+        if mode == "sinusoidal":
+            if ood:
+                freqs = rng.uniform(0.75, 2.5, size=N_ARM)
+            else:
+                freqs = rng.uniform(0.1, 1.0, size=N_ARM)
+            phases = rng.uniform(0.0, 2 * np.pi, size=N_ARM)
+            if ood:
+                amps = rng.uniform(0.4, 0.65, size=N_ARM)
+            else:
+                amps = rng.uniform(0.15, 0.35, size=N_ARM)
+            kwargs = dict(freqs=freqs, phases=phases, amps=amps)
+        elif mode == "chirp":
+            phases = rng.uniform(0.0, 2 * np.pi, size=N_ARM)
+            if ood:
+                f0 = float(rng.uniform(0.5, 1.0))
+                f1 = float(rng.uniform(2.0, 4.0))
+            else:
+                f0 = float(rng.uniform(0.05, 0.2))
+                f1 = float(rng.uniform(0.5, 2.0))
+            kwargs = dict(phases=phases, f0=f0, f1=f1)
+        else:
+            kwargs = {}
+
+        episode_seed = int(rng.integers(0, 10000))
+        env = load_dynamics_env(random_seed=episode_seed)
+        episode = collect_episode(
+            env,
+            mode,
+            EPISODE_LENGTH,
+            rng,
+            action_scale=0.65 if ood else 0.35,
+            **kwargs,
+        )
+        valid = _valid_samples(episode, ood, ood_bounds=ood_bounds)
+        valid_indices = np.flatnonzero(valid)
+        quota = min(samples_per_episode, n_samples - collected)
+        n_take = min(quota, len(valid_indices))
+        if n_take:
+            # Spread each episode's retained rows across the full trajectory
+            # rather than taking a correlated prefix.
+            chosen = valid_indices[
+                np.linspace(0, len(valid_indices) - 1, n_take, dtype=int)
+            ]
+            for key in episode:
+                parts[key].append(episode[key][chosen])
+            parts["episode_id"].append(np.full(n_take, episode_id, dtype=np.int32))
+            collected += n_take
+        episode_id += 1
+        if episode_id >= max_episodes and collected < n_samples:
+            raise RuntimeError(
+                f"Could not collect {n_samples} valid samples after "
+                f"{max_episodes} episodes."
+            )
+
+    split = {
+        key: np.concatenate(values, axis=0)[:n_samples]
+        for key, values in parts.items()
+    }
+    return split
+
+
+def _metadata(split_sizes, episode_counts):
+    return {
+        "task": "dm_control.manipulator.bring_ball",
+        "data_model": (
+            "bring_ball MJCF; four arm joints actuated; gripper hinges "
+            "removed so finger bodies are rigidly attached to the wrist; "
+            "collision geoms disabled for free-space inverse dynamics"
+        ),
+        "seed": 42,
+        "arm_joints": list(ARM_JOINT_NAMES),
+        "raw_state_features": ["q[4]", "qdot[4]", "qddot[4]"],
+        "mlp_feature_encoding": (
+            "[sin(q_root), cos(q_root), q_shoulder, q_elbow, q_wrist, "
+            "qdot[4], qddot[4]]"
+        ),
+        "mlp_feature_dim": 13,
+        "target": "tau[4] (physical actuator generalized forces)",
+        "units": {
+            "q": "rad",
+            "qdot": "rad/s",
+            "qddot": "rad/s^2",
+            "tau": "N*m",
+            "action": "normalized actuator control in [-1, 1]",
+            "time_s": "s from the start of each episode",
+        },
+        "physics_timestep_s": 0.001,
+        "control_timestep_s": CONTROL_TIMESTEP_S,
+        "sample_timestep_s": CONTROL_TIMESTEP_S,
+        "physics_substeps_per_sample": int(
+            round(CONTROL_TIMESTEP_S / 0.001)
+        ),
+        "excitation": ["random", "sinusoidal", "chirp"],
+        "excitation_timebase": "control_timestep_s",
+        "train_action_amplitude": 0.35,
+        "ood_action_amplitude": 0.65,
+        "excitation_frequency_hz": {
+            "train_sinusoidal": [0.1, 1.0],
+            "train_chirp_f0": [0.05, 0.2],
+            "train_chirp_f1": [0.5, 2.0],
+            "ood_sinusoidal": [0.75, 2.5],
+            "ood_chirp_f0": [0.5, 1.0],
+            "ood_chirp_f1": [2.0, 4.0],
+        },
+        "ood_definition": (
+            "higher action amplitude/frequencies; every accepted row has at "
+            "least one q, qdot, or qddot component outside the empirical "
+            "training min/max"
+        ),
+        "gear_ratios": GEAR_RATIOS.tolist(),
+        "contact_handling": (
+            "collision geoms disabled; ncon recorded and asserted to be zero"
+        ),
+        "sample_metadata": [
+            "action[4]",
+            "time_s",
+            "episode_id",
+            "mode",
+            "ncon",
+        ],
+        "split_sizes": split_sizes,
+        "episodes_per_split": episode_counts,
+        "episode_sampling": (
+            "accepted samples are spread over each episode; splits target "
+            "40 training episodes and 10 episodes per evaluation split"
+        ),
+        "rejection_filters": {
+            "joint_limit_margin_rad": 0.05,
+            "max_abs_qdot": MAX_ABS_QDOT_FOR_DATA,
+            "max_abs_qddot_train": TRAIN_MAX_ABS_QDDOT_FOR_DATA,
+            "max_abs_qddot_ood": OOD_MAX_ABS_QDDOT_FOR_DATA,
+            "contacts": 0,
+        },
+        "measurement_noise": "none",
+        "validation_command": "python -m dataset.validate_data",
+    }
 
 
 def main():
@@ -132,55 +339,63 @@ def main():
     parser.add_argument("--val", type=int, default=2000)
     parser.add_argument("--test", type=int, default=2000)
     parser.add_argument("--ood", type=int, default=2000)
+    parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    rng = np.random.default_rng(42)
+    rng = np.random.default_rng(args.seed)
     os.makedirs(DATA_DIR, exist_ok=True)
-
-    modes = ["random", "sinusoidal", "chirp"]
-
-    print("Collecting train...")
-    q, qd, qdd, tau = collect_split(args.train, modes, rng, ood=False)
-    np.savez(os.path.join(DATA_DIR, "train.npz"), q=q, qdot=qd, qddot=qdd, tau=tau)
-    print("train", q.shape)
-
-    print("Collecting val...")
-    q, qd, qdd, tau = collect_split(args.val, modes, rng, ood=False)
-    np.savez(os.path.join(DATA_DIR, "val.npz"), q=q, qdot=qd, qddot=qdd, tau=tau)
-    print("val", q.shape)
-
-    print("Collecting test...")
-    q, qd, qdd, tau = collect_split(args.test, modes, rng, ood=False)
-    np.savez(os.path.join(DATA_DIR, "test.npz"), q=q, qdot=qd, qddot=qdd, tau=tau)
-    print("test", q.shape)
-
-    print("Collecting OOD...")
-    q, qd, qdd, tau = collect_split(args.ood, modes, rng, ood=True)
-    np.savez(os.path.join(DATA_DIR, "ood.npz"), q=q, qdot=qd, qddot=qdd, tau=tau)
-    print("ood", q.shape)
-
-    print("Done.")
-    metadata = {
-        "task": "dm_control.manipulator.bring_ball",
-        "seed": 42,
-        "features": ["q[4]", "qdot[4]", "qddot[4]"],
-        "target": "tau[4]",
-        "units": {"q": "rad", "qdot": "rad/s", "qddot": "rad/s^2", "tau": "N*m"},
-        "timestep_s": 0.001,
-        "excitation": ["random", "sinusoidal", "chirp"],
-        "train_action_amplitude": 0.35,
-        "ood_action_amplitude": 0.65,
-        "contact_handling": "ball moved outside workspace before forward dynamics",
-        "rejection_filters": {
-            "joint_limit_margin_rad": 0.05,
-            "max_abs_qdot": 10.0,
-            "max_abs_qddot_train": 1200.0,
-            "max_abs_qddot_ood": 1800.0,
-        },
-        "validation_command": "python -m src.validate_data",
+    modes = ("random", "sinusoidal", "chirp")
+    sizes = {
+        "train": args.train,
+        "val": args.val,
+        "test": args.test,
+        "ood": args.ood,
     }
+    split_data = {}
+    episode_counts = {}
+    for split_name in SPLIT_NAMES:
+        print(f"Collecting {split_name}...")
+        ood_bounds = None
+        if split_name == "ood":
+            train_features = np.concatenate(
+                (
+                    split_data["train"]["q"],
+                    split_data["train"]["qdot"],
+                    split_data["train"]["qddot"],
+                ),
+                axis=1,
+            )
+            ood_bounds = (train_features.min(axis=0), train_features.max(axis=0))
+        split = collect_split(
+            sizes[split_name],
+            modes,
+            rng,
+            ood=(split_name == "ood"),
+            ood_bounds=ood_bounds,
+            n_episodes=40 if split_name == "train" else 10,
+        )
+        path = os.path.join(DATA_DIR, f"{split_name}.npz")
+        np.savez_compressed(path, **split)
+        split_data[split_name] = split
+        episode_counts[split_name] = int(
+            np.unique(split["episode_id"]).size
+        )
+        print(
+            split_name,
+            split["q"].shape,
+            "episodes=",
+            episode_counts[split_name],
+        )
+
+    save_stats(
+        compute_stats(os.path.join(DATA_DIR, "train.npz")),
+        os.path.join(DATA_DIR, "stats.json"),
+    )
+    metadata = _metadata(sizes, episode_counts)
+    metadata["seed"] = args.seed
     with open(os.path.join(DATA_DIR, "dataset_metadata.json"), "w") as f:
         json.dump(metadata, f, indent=2)
+    print("Saved datasets, training-only normalization stats, and metadata.")
 
 
 if __name__ == "__main__":

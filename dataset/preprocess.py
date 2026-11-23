@@ -7,10 +7,32 @@ import numpy as np
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 
+def encode_features(q, qdot, qddot):
+    """Encode the periodic root angle without a discontinuity at +/- pi.
+
+    Physical states remain stored as four joint angles. The learning feature
+    vector replaces q_root with (sin(q_root), cos(q_root)), giving 13 inputs.
+    """
+    q = np.asarray(q)
+    qdot = np.asarray(qdot)
+    qddot = np.asarray(qddot)
+    root_angle = q[:, :1]
+    return np.concatenate(
+        (
+            np.sin(root_angle),
+            np.cos(root_angle),
+            q[:, 1:],
+            qdot,
+            qddot,
+        ),
+        axis=1,
+    )
+
+
 def compute_stats(npz_path):
     d = np.load(npz_path)
     q = d["q"]; qd = d["qdot"]; qdd = d["qddot"]; tau = d["tau"]
-    X = np.concatenate([q, qd, qdd], axis=1)  # (N,12)
+    X = encode_features(q, qd, qdd)  # (N,13)
     Y = tau  # (N,4)
     stats = {
         "X_mean": X.mean(axis=0).tolist(),

@@ -1,0 +1,31 @@
+{
+  "best_epoch": 116,
+  "best_val_loss": 0.002395401904126629,
+  "epochs_run": 120,
+  "stopped_early": false,
+  "config": {
+    "max_epochs": 120,
+    "patience": 15,
+    "min_delta": 1e-06,
+    "grad_clip_norm": 10.0,
+    "device": "auto",
+    "seed": 42,
+    "fraction": 0.1,
+    "training_samples": 2000,
+    "total_training_samples": 20000,
+    "batch_size": 256,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "model": {
+      "input_dim": 13,
+      "output_dim": 4,
+      "hidden_sizes": [
+        256,
+        256,
+        128
+      ],
+      "activation": "tanh",
+      "dropout": 0.0
+    }
+  }
+}
