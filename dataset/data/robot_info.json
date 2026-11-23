@@ -1,0 +1,164 @@
+{
+  "nq": 11,
+  "nv": 11,
+  "nu": 5,
+  "timestep": 0.001,
+  "arm_joints": [
+    {
+      "index": 0,
+      "name": "arm_root",
+      "type": 3,
+      "qposadr": 0,
+      "dofadr": 0,
+      "range": [
+        0.0,
+        0.0
+      ],
+      "limited": false,
+      "damping": 2.0,
+      "armature": 0.0,
+      "frictionloss": 0.0
+    },
+    {
+      "index": 1,
+      "name": "arm_shoulder",
+      "type": 3,
+      "qposadr": 1,
+      "dofadr": 1,
+      "range": [
+        -2.792526803190927,
+        2.792526803190927
+      ],
+      "limited": true,
+      "damping": 1.5,
+      "armature": 0.0,
+      "frictionloss": 0.0
+    },
+    {
+      "index": 2,
+      "name": "arm_elbow",
+      "type": 3,
+      "qposadr": 2,
+      "dofadr": 2,
+      "range": [
+        -2.792526803190927,
+        2.792526803190927
+      ],
+      "limited": true,
+      "damping": 1.0,
+      "armature": 0.0,
+      "frictionloss": 0.0
+    },
+    {
+      "index": 3,
+      "name": "arm_wrist",
+      "type": 3,
+      "qposadr": 3,
+      "dofadr": 3,
+      "range": [
+        -2.443460952792061,
+        2.443460952792061
+      ],
+      "limited": true,
+      "damping": 0.5,
+      "armature": 0.0,
+      "frictionloss": 0.0
+    }
+  ],
+  "arm_actuators": [
+    {
+      "index": 0,
+      "name": "root",
+      "gear": [
+        12.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ctrlrange": [
+        -1.0,
+        1.0
+      ]
+    },
+    {
+      "index": 1,
+      "name": "shoulder",
+      "gear": [
+        8.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ctrlrange": [
+        -1.0,
+        1.0
+      ]
+    },
+    {
+      "index": 2,
+      "name": "elbow",
+      "gear": [
+        4.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ctrlrange": [
+        -1.0,
+        1.0
+      ]
+    },
+    {
+      "index": 3,
+      "name": "wrist",
+      "gear": [
+        2.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "ctrlrange": [
+        -1.0,
+        1.0
+      ]
+    }
+  ],
+  "gear_ratios": [
+    12.0,
+    8.0,
+    4.0,
+    2.0
+  ],
+  "joint_limits": [
+    [
+      -Infinity,
+      Infinity
+    ],
+    [
+      -2.7925268,
+      2.7925268
+    ],
+    [
+      -2.7925268,
+      2.7925268
+    ],
+    [
+      -2.44346095,
+      2.44346095
+    ]
+  ],
+  "vel_limits": [
+    3.0,
+    3.0,
+    3.0,
+    3.0
+  ]
+}

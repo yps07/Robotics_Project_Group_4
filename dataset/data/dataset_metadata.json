@@ -1,0 +1,19 @@
+{
+  "task": "dm_control.manipulator.bring_ball",
+  "seed": 42,
+  "features": ["q[4]", "qdot[4]", "qddot[4]"],
+  "target": "tau[4]",
+  "units": {"q": "rad", "qdot": "rad/s", "qddot": "rad/s^2", "tau": "N*m"},
+  "timestep_s": 0.001,
+  "excitation": ["random", "sinusoidal", "chirp"],
+  "train_action_amplitude": 0.35,
+  "ood_action_amplitude": 0.65,
+  "contact_handling": "ball moved outside workspace before forward dynamics",
+  "rejection_filters": {
+    "joint_limit_margin_rad": 0.05,
+    "max_abs_qdot": 10.0,
+    "max_abs_qddot_train": 1200.0,
+    "max_abs_qddot_ood": 1800.0
+  },
+  "validation_command": "python -m src.validate_data"
+}
