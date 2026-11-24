@@ -1,0 +1,35 @@
+w64_d2_tanh_wd0.0001             best val 2.0971e-04  epoch 132
+w64_d2_tanh_wd1e-05              best val 1.1320e-04  epoch 293
+w64_d2_softplus_wd0.0001         best val 4.4646e-04  epoch 295
+w64_d2_softplus_wd1e-05          best val 2.6772e-04  epoch 257
+w128_d2_tanh_wd1e-05             best val 1.3283e-04  epoch 109
+w128_d2_softplus_wd1e-05         best val 2.8986e-04  epoch 66
+w128_d2_tanh_wd0.0001            best val 2.6615e-04  epoch 129
+w128_d2_softplus_wd0.0001        best val 6.3627e-04  epoch 83
+w128_d3_tanh_wd1e-05             best val 8.2354e-05  epoch 45
+w128_d3_tanh_wd0.0001            best val 2.4713e-04  epoch 41
+w256_d3_tanh_wd1e-05             best val 1.5864e-04  epoch 42
+w128_d3_softplus_wd1e-05         best val 2.0926e-02  epoch 99
+w128_d3_softplus_wd0.0001        best val 9.6666e-04  epoch 118
+w256_d3_tanh_wd0.0001            best val 3.0249e-04  epoch 175
+w256_d3_softplus_wd1e-05         best val 2.0932e-02  epoch 178
+w256_d3_softplus_wd0.0001        best val 2.1310e-02  epoch 188
+                     name  width  depth activation  weight_decay  n_train  best_epoch  epochs_run  best_val_loss_normalized                  learned_damping
+     w128_d3_tanh_wd1e-05    128      3       tanh       0.00001     6000          45          86                  0.000082       [1.9994, 1.5, 1.0, 0.5006]
+      w64_d2_tanh_wd1e-05     64      2       tanh       0.00001     6000         293         300                  0.000113 [1.9998, 1.5003, 0.9997, 0.5002]
+     w128_d2_tanh_wd1e-05    128      2       tanh       0.00001     6000         109         150                  0.000133 [1.9998, 1.5002, 0.9987, 0.5003]
+     w256_d3_tanh_wd1e-05    256      3       tanh       0.00001     6000          42          83                  0.000159    [1.9996, 1.5, 1.0007, 0.5005]
+     w64_d2_tanh_wd0.0001     64      2       tanh       0.00010     6000         132         173                  0.000210 [1.9991, 1.5012, 0.9995, 0.5003]
+    w128_d3_tanh_wd0.0001    128      3       tanh       0.00010     6000          41          82                  0.000247 [1.9983, 1.5008, 0.9986, 0.5006]
+    w128_d2_tanh_wd0.0001    128      2       tanh       0.00010     6000         129         170                  0.000266 [1.9993, 1.5009, 0.9993, 0.5002]
+  w64_d2_softplus_wd1e-05     64      2   softplus       0.00001     6000         257         298                  0.000268 [1.9998, 1.5012, 0.9987, 0.5002]
+ w128_d2_softplus_wd1e-05    128      2   softplus       0.00001     6000          66         107                  0.000290 [1.9995, 1.5005, 0.9994, 0.5004]
+    w256_d3_tanh_wd0.0001    256      3       tanh       0.00010     6000         175         216                  0.000302 [1.9994, 1.4996, 1.0001, 0.5001]
+ w64_d2_softplus_wd0.0001     64      2   softplus       0.00010     6000         295         300                  0.000446 [1.9998, 1.4991, 0.9991, 0.5002]
+w128_d2_softplus_wd0.0001    128      2   softplus       0.00010     6000          83         124                  0.000636 [1.9998, 1.4985, 0.9969, 0.5001]
+w128_d3_softplus_wd0.0001    128      3   softplus       0.00010     6000         118         159                  0.000967  [2.001, 1.4987, 0.9995, 0.5002]
+ w128_d3_softplus_wd1e-05    128      3   softplus       0.00001     6000          99         140                  0.020926 [2.1165, 1.4958, 0.9992, 0.5002]
+ w256_d3_softplus_wd1e-05    256      3   softplus       0.00001     6000         178         219                  0.020932 [2.1157, 1.4952, 0.9982, 0.5003]
+w256_d3_softplus_wd0.0001    256      3   softplus       0.00010     6000         188         229                  0.021310  [2.117, 1.4927, 0.9965, 0.5001]
+
+selected: w128_d3_tanh_wd1e-05

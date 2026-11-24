@@ -1,0 +1,24 @@
+[delan_f0.1_s42] ep    0  train 3.226e-01  val 3.107e-01  best 3.107e-01@0  D=[1.051 1.051 0.996 0.95 ]  1s
+[delan_f0.1_s42] ep   10  train 3.339e-02  val 3.353e-02  best 3.353e-02@10  D=[1.565 1.452 0.995 0.638]  7s
+[delan_f0.1_s42] ep   20  train 2.968e-03  val 4.174e-03  best 4.174e-03@20  D=[1.894 1.499 0.997 0.544]  12s
+[delan_f0.1_s42] ep   30  train 5.130e-04  val 1.011e-03  best 1.011e-03@30  D=[1.984 1.5   0.997 0.516]  19s
+[delan_f0.1_s42] ep   40  train 2.331e-04  val 4.729e-04  best 4.729e-04@40  D=[1.996 1.5   0.997 0.507]  25s
+[delan_f0.1_s42] ep   50  train 1.397e-04  val 3.002e-04  best 3.002e-04@50  D=[1.997 1.5   0.999 0.504]  31s
+[delan_f0.1_s42] ep   60  train 9.572e-05  val 2.263e-04  best 2.263e-04@60  D=[1.997 1.5   0.998 0.502]  37s
+[delan_f0.1_s42] ep   70  train 7.353e-05  val 1.797e-04  best 1.797e-04@70  D=[1.998 1.5   1.    0.502]  43s
+[delan_f0.1_s42] ep   80  train 5.696e-05  val 1.484e-04  best 1.484e-04@80  D=[1.998 1.5   0.999 0.501]  49s
+[delan_f0.1_s42] ep   90  train 4.684e-05  val 1.419e-04  best 1.314e-04@88  D=[1.999 1.5   1.    0.501]  55s
+[delan_f0.1_s42] ep  100  train 3.973e-05  val 1.165e-04  best 1.162e-04@99  D=[1.999 1.5   1.    0.501]  61s
+[delan_f0.1_s42] ep  110  train 3.806e-05  val 1.087e-04  best 1.087e-04@110  D=[1.999 1.5   1.    0.501]  67s
+[delan_f0.1_s42] ep  120  train 3.452e-05  val 1.065e-04  best 1.028e-04@118  D=[1.999 1.5   1.    0.501]  73s
+[delan_f0.1_s42] ep  130  train 2.883e-05  val 1.055e-04  best 1.016e-04@129  D=[1.999 1.5   0.999 0.501]  79s
+[delan_f0.1_s42] ep  140  train 2.986e-05  val 1.061e-04  best 9.766e-05@138  D=[1.999 1.5   1.    0.501]  85s
+[delan_f0.1_s42] ep  150  train 2.664e-05  val 9.638e-05  best 9.638e-05@150  D=[1.999 1.5   1.    0.501]  91s
+[delan_f0.1_s42] ep  160  train 2.448e-05  val 9.610e-05  best 9.416e-05@157  D=[1.999 1.5   0.999 0.501]  98s
+[delan_f0.1_s42] ep  170  train 2.383e-05  val 1.002e-04  best 9.416e-05@157  D=[1.999 1.5   1.    0.501]  104s
+[delan_f0.1_s42] ep  180  train 2.322e-05  val 9.762e-05  best 9.278e-05@173  D=[1.999 1.5   1.    0.501]  110s
+[delan_f0.1_s42] ep  190  train 2.371e-05  val 1.002e-04  best 9.278e-05@173  D=[1.999 1.5   1.    0.501]  116s
+[delan_f0.1_s42] ep  200  train 2.155e-05  val 9.378e-05  best 9.278e-05@173  D=[1.999 1.5   1.    0.501]  122s
+[delan_f0.1_s42] ep  210  train 2.098e-05  val 9.648e-05  best 9.278e-05@173  D=[1.999 1.5   0.999 0.501]  128s
+[delan_f0.1_s42] early stop at epoch 213
+[delan_f0.1_s42] saved /home/logan/Desktop/Robotics_Project/Robotics_Project_Group_4/delan/checkpoints/delan_f0.1_s42.pt  n_train=2000  best val 9.2782e-05 (epoch 173)

@@ -1,0 +1,12 @@
+[delan_f0.5_s42] ep    0  train 2.200e-01  val 1.262e-01  best 1.262e-01@0  D=[1.26  1.256 0.995 0.784]  3s
+[delan_f0.5_s42] ep   10  train 1.221e-04  val 2.427e-04  best 2.427e-04@10  D=[1.997 1.5   1.    0.502]  28s
+[delan_f0.5_s42] ep   20  train 3.641e-05  val 9.911e-05  best 9.911e-05@20  D=[1.999 1.5   0.999 0.501]  53s
+[delan_f0.5_s42] ep   30  train 4.512e-05  val 9.923e-05  best 8.628e-05@28  D=[1.999 1.5   1.    0.5  ]  77s
+[delan_f0.5_s42] ep   40  train 2.745e-05  val 1.055e-04  best 8.551e-05@36  D=[2.  1.5 1.  0.5]  101s
+[delan_f0.5_s42] ep   50  train 6.065e-05  val 8.540e-05  best 8.540e-05@50  D=[2.  1.5 1.  0.5]  125s
+[delan_f0.5_s42] ep   60  train 2.177e-05  val 1.099e-04  best 8.540e-05@50  D=[2.  1.5 1.  0.5]  140s
+[delan_f0.5_s42] ep   70  train 3.019e-05  val 1.103e-04  best 8.540e-05@50  D=[2.  1.5 1.  0.5]  152s
+[delan_f0.5_s42] ep   80  train 2.144e-05  val 1.375e-04  best 8.540e-05@50  D=[2.    1.5   0.999 0.5  ]  164s
+[delan_f0.5_s42] ep   90  train 2.054e-05  val 1.087e-04  best 8.540e-05@50  D=[2.  1.5 1.  0.5]  175s
+[delan_f0.5_s42] early stop at epoch 90
+[delan_f0.5_s42] saved /home/logan/Desktop/Robotics_Project/Robotics_Project_Group_4/delan/checkpoints/delan_f0.5_s42.pt  n_train=10000  best val 8.5402e-05 (epoch 50)

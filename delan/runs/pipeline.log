@@ -1,0 +1,95 @@
+w64_d2_tanh_wd0.0001             best val 2.0971e-04  epoch 132
+w64_d2_tanh_wd1e-05              best val 1.1320e-04  epoch 293
+w64_d2_softplus_wd0.0001         best val 4.4646e-04  epoch 295
+w64_d2_softplus_wd1e-05          best val 2.6772e-04  epoch 257
+w128_d2_tanh_wd1e-05             best val 1.3283e-04  epoch 109
+w128_d2_softplus_wd1e-05         best val 2.8986e-04  epoch 66
+w128_d2_tanh_wd0.0001            best val 2.6615e-04  epoch 129
+w128_d2_softplus_wd0.0001        best val 6.3627e-04  epoch 83
+w128_d3_tanh_wd1e-05             best val 8.2354e-05  epoch 45
+w128_d3_tanh_wd0.0001            best val 2.4713e-04  epoch 41
+w256_d3_tanh_wd1e-05             best val 1.5864e-04  epoch 42
+w128_d3_softplus_wd1e-05         best val 2.0926e-02  epoch 99
+w128_d3_softplus_wd0.0001        best val 9.6666e-04  epoch 118
+w256_d3_tanh_wd0.0001            best val 3.0249e-04  epoch 175
+w256_d3_softplus_wd1e-05         best val 2.0932e-02  epoch 178
+w256_d3_softplus_wd0.0001        best val 2.1310e-02  epoch 188
+                     name  width  depth activation  weight_decay  n_train  best_epoch  epochs_run  best_val_loss_normalized                  learned_damping
+     w128_d3_tanh_wd1e-05    128      3       tanh       0.00001     6000          45          86                  0.000082       [1.9994, 1.5, 1.0, 0.5006]
+      w64_d2_tanh_wd1e-05     64      2       tanh       0.00001     6000         293         300                  0.000113 [1.9998, 1.5003, 0.9997, 0.5002]
+     w128_d2_tanh_wd1e-05    128      2       tanh       0.00001     6000         109         150                  0.000133 [1.9998, 1.5002, 0.9987, 0.5003]
+     w256_d3_tanh_wd1e-05    256      3       tanh       0.00001     6000          42          83                  0.000159    [1.9996, 1.5, 1.0007, 0.5005]
+     w64_d2_tanh_wd0.0001     64      2       tanh       0.00010     6000         132         173                  0.000210 [1.9991, 1.5012, 0.9995, 0.5003]
+    w128_d3_tanh_wd0.0001    128      3       tanh       0.00010     6000          41          82                  0.000247 [1.9983, 1.5008, 0.9986, 0.5006]
+    w128_d2_tanh_wd0.0001    128      2       tanh       0.00010     6000         129         170                  0.000266 [1.9993, 1.5009, 0.9993, 0.5002]
+  w64_d2_softplus_wd1e-05     64      2   softplus       0.00001     6000         257         298                  0.000268 [1.9998, 1.5012, 0.9987, 0.5002]
+ w128_d2_softplus_wd1e-05    128      2   softplus       0.00001     6000          66         107                  0.000290 [1.9995, 1.5005, 0.9994, 0.5004]
+    w256_d3_tanh_wd0.0001    256      3       tanh       0.00010     6000         175         216                  0.000302 [1.9994, 1.4996, 1.0001, 0.5001]
+ w64_d2_softplus_wd0.0001     64      2   softplus       0.00010     6000         295         300                  0.000446 [1.9998, 1.4991, 0.9991, 0.5002]
+w128_d2_softplus_wd0.0001    128      2   softplus       0.00010     6000          83         124                  0.000636 [1.9998, 1.4985, 0.9969, 0.5001]
+w128_d3_softplus_wd0.0001    128      3   softplus       0.00010     6000         118         159                  0.000967  [2.001, 1.4987, 0.9995, 0.5002]
+ w128_d3_softplus_wd1e-05    128      3   softplus       0.00001     6000          99         140                  0.020926 [2.1165, 1.4958, 0.9992, 0.5002]
+ w256_d3_softplus_wd1e-05    256      3   softplus       0.00001     6000         178         219                  0.020932 [2.1157, 1.4952, 0.9982, 0.5003]
+w256_d3_softplus_wd0.0001    256      3   softplus       0.00010     6000         188         229                  0.021310  [2.117, 1.4927, 0.9965, 0.5001]
+
+selected: w128_d3_tanh_wd1e-05
+...............                                                          [100%]
+15 passed in 7.18s
+libdecor-gtk-WARNING: Failed to initialize GTK
+Failed to load plugin 'libdecor-gtk.so': failed to init
+No plugins found, falling back on no decorations
+            model  fraction  seed               set     n  frac_pd  cholesky_success  min_eig  median_min_eig  max_eig  median_cond  max_cond  max_sym_err
+       analytical       NaN   NaN              test  2000        1                 1 2.98e-05        3.18e-05    0.027          727       906     3.47e-18
+       analytical       NaN   NaN               ood  2000        1                 1 2.98e-05        3.21e-05    0.027          734       905     3.47e-18
+       analytical       NaN   NaN uniform_in_limits 10000        1                 1 3.01e-05        6.09e-05    0.027          196       894     3.47e-18
+delan_f0.1_s42.pt       0.1    42              test  2000        1                 1  0.00217         0.00236   0.0274         10.3      12.4            0
+delan_f0.1_s42.pt       0.1    42               ood  2000        1                 1  0.00218         0.00232   0.0273         10.3      12.4            0
+delan_f0.1_s42.pt       0.1    42 uniform_in_limits 10000        1                 1  0.00146         0.00319   0.0274         3.23      12.2            0
+delan_f0.3_s42.pt       0.3    42              test  2000        1                 1  0.00216          0.0025   0.0274         9.73      12.5            0
+delan_f0.3_s42.pt       0.3    42               ood  2000        1                 1  0.00216         0.00238   0.0274           10      12.5            0
+delan_f0.3_s42.pt       0.3    42 uniform_in_limits 10000        1                 1  0.00142         0.00326   0.0274         3.18      12.3            0
+delan_f0.5_s42.pt       0.5    42              test  2000        1                 1  0.00196         0.00227   0.0275         10.7      13.8            0
+delan_f0.5_s42.pt       0.5    42               ood  2000        1                 1  0.00196         0.00219   0.0274         10.9      13.8            0
+delan_f0.5_s42.pt       0.5    42 uniform_in_limits 10000        1                 1  0.00129         0.00316   0.0275         3.11      13.6            0
+delan_f1.0_s42.pt         1    42              test  2000        1                 1   0.0021         0.00245   0.0275         9.93      12.8            0
+delan_f1.0_s42.pt         1    42               ood  2000        1                 1  0.00211         0.00232   0.0273         10.2      12.8            0
+delan_f1.0_s42.pt         1    42 uniform_in_limits 10000        1                 1  0.00138         0.00322   0.0274         3.18      12.6            0
+
+saved /home/logan/Desktop/Robotics_Project/Robotics_Project_Group_4/delan/results/spd_results.csv
+ALL SPD
+libdecor-gtk-WARNING: Failed to initialize GTK
+Failed to load plugin 'libdecor-gtk.so': failed to init
+No plugins found, falling back on no decorations
+=== Torque prediction (N*m) ===
+     model  fraction split      rmse       mae     r2  rmse_arm_root  rmse_arm_shoulder  rmse_arm_elbow  rmse_arm_wrist
+analytical       NaN  test 1.741e-16 7.313e-17      1      2.853e-16          1.782e-16       8.037e-17       4.043e-17
+analytical       NaN   ood 3.096e-16 1.177e-16      1      4.881e-16          3.398e-16       1.514e-16       8.232e-17
+     delan       0.1  test   0.01438  0.007162 0.9999        0.01667            0.01961        0.009876        0.008202
+     delan       0.1   ood   0.02607   0.01307 0.9999        0.04434            0.02088         0.01674        0.005949
+     delan       0.3  test   0.01404  0.007068 0.9999        0.01592            0.01904          0.0104        0.008052
+     delan       0.3   ood   0.02488   0.01259 0.9999        0.04239            0.02004         0.01562        0.005832
+     delan       0.5  test   0.01398  0.007165 0.9999        0.01722            0.01874        0.009173        0.007102
+     delan       0.5   ood    0.0259   0.01261 0.9999        0.04371            0.02124         0.01713        0.005186
+     delan         1  test   0.01469  0.007482 0.9999        0.01652            0.01986         0.01057        0.009184
+     delan         1   ood   0.02499   0.01255 0.9999        0.04295            0.01916         0.01604        0.005441
+
+=== Physics recovery ===
+ fraction split  M_rel_fro_mean   g_rmse   g_rel  D_max_rel_err  min_eig_M  D_arm_root  D_arm_shoulder  D_arm_elbow  D_arm_wrist
+      0.1  test          0.3295  0.01337 0.06635       0.001321   0.002174       1.999             1.5       0.9997       0.5007
+      0.1   ood          0.2855 0.005112 0.02578       0.001321   0.002176       1.999             1.5       0.9997       0.5007
+      0.3  test          0.3425  0.01325 0.06577       0.001152   0.002156       1.999             1.5            1       0.5006
+      0.3   ood          0.2962 0.005298 0.02672       0.001152   0.002159       1.999             1.5            1       0.5006
+      0.5  test          0.3107  0.01287 0.06386      0.0004069   0.001958           2             1.5       0.9996       0.5002
+      0.5   ood           0.272 0.004662 0.02351      0.0004069   0.001958           2             1.5       0.9996       0.5002
+        1  test          0.3332  0.01366 0.06778       0.001036   0.002096       1.999             1.5       0.9996       0.5005
+        1   ood          0.2904  0.00518 0.02612       0.001036   0.002109       1.999             1.5       0.9996       0.5005
+true damping: [2.  1.5 1.  0.5]
+
+=== Ablation (100 %) ===
+                model split    rmse      r2  best_val_loss_normalized  M_rel_fro_mean  g_rmse
+ DeLaN (with damping)  test 0.01469  0.9999                 8.204e-05          0.3332 0.01366
+ DeLaN (with damping)   ood 0.02499  0.9999                 8.204e-05          0.2904 0.00518
+DeLaN without damping  test   1.488  0.1356                    0.9446           10.11  0.2158
+DeLaN without damping   ood   3.082 0.09486                    0.9446           9.316  0.2202
+
+results written to /home/logan/Desktop/Robotics_Project/Robotics_Project_Group_4/delan/results

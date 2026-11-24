@@ -1,0 +1,7 @@
+[delan_no_damping_f1.0_s42] ep    0  train 9.393e-01  val 9.450e-01  best 9.450e-01@0  D=[0. 0. 0. 0.]  5s
+[delan_no_damping_f1.0_s42] ep   10  train 8.331e-01  val 9.867e-01  best 9.446e-01@2  D=[0. 0. 0. 0.]  53s
+[delan_no_damping_f1.0_s42] ep   20  train 7.368e-01  val 1.194e+00  best 9.446e-01@2  D=[0. 0. 0. 0.]  99s
+[delan_no_damping_f1.0_s42] ep   30  train 6.686e-01  val 1.451e+00  best 9.446e-01@2  D=[0. 0. 0. 0.]  139s
+[delan_no_damping_f1.0_s42] ep   40  train 6.247e-01  val 1.768e+00  best 9.446e-01@2  D=[0. 0. 0. 0.]  167s
+[delan_no_damping_f1.0_s42] early stop at epoch 42
+[delan_no_damping_f1.0_s42] saved checkpoints/ablation/delan_no_damping_f1.0_s42.pt  n_train=20000  best val 9.4460e-01 (epoch 2)
