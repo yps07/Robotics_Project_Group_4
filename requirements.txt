@@ -1,5 +1,6 @@
 # Unified dependencies for Workstreams A (dm_control/data), B (analytical),
-# C (PyTorch MLP) and D (DeLaN: pytest for its tests, tensorboard optional for logs).
+# C (PyTorch MLP), D (DeLaN: pytest for its tests, tensorboard optional for logs)
+# and E (rollouts/control: imageio for the demo video).
 # Tested with Python 3.11.9 on Windows.
 dm_control==1.0.52
 mujoco==4.0.1
@@ -10,3 +11,6 @@ pandas==3.1.1
 lxml==6.1.3
 pytest>=8.0
 tensorboard>=2.18
+# Workstream E (evaluation/control): demo video rendering
+imageio>=2.36,<3.0
+imageio-ffmpeg>=0.5,<1.0

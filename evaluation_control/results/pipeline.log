@@ -1,0 +1,57 @@
+[test] 90 constraint-free 2 s windows from 10 episodes
+  analytical     1 s pos RMSE 4.552e-04 rad   diverged 0%   (34.1 s)
+  mlp@10%        1 s pos RMSE 4.884e-02 rad   diverged 53%   (25.4 s)
+  mlp@30%        1 s pos RMSE 3.237e-02 rad   diverged 32%   (24.2 s)
+  mlp@50%        1 s pos RMSE 2.936e-02 rad   diverged 38%   (20.6 s)
+  mlp@100%       1 s pos RMSE 3.129e-02 rad   diverged 28%   (20.2 s)
+  delan@10%      1 s pos RMSE 1.565e-02 rad   diverged 0%   (4.1 s)
+  delan@30%      1 s pos RMSE 1.545e-02 rad   diverged 0%   (4.1 s)
+  delan@50%      1 s pos RMSE 1.352e-02 rad   diverged 0%   (4.0 s)
+  delan@100%     1 s pos RMSE 1.554e-02 rad   diverged 0%   (4.1 s)
+[ood] 90 constraint-free 2 s windows from 10 episodes
+  analytical     1 s pos RMSE 1.188e-03 rad   diverged 0%   (33.0 s)
+  mlp@10%        1 s pos RMSE 2.959e-01 rad   diverged 97%   (10.7 s)
+  mlp@30%        1 s pos RMSE 3.334e-01 rad   diverged 87%   (14.6 s)
+  mlp@50%        1 s pos RMSE 2.029e-01 rad   diverged 86%   (15.0 s)
+  mlp@100%       1 s pos RMSE 2.707e-01 rad   diverged 81%   (15.6 s)
+  delan@10%      1 s pos RMSE 1.051e-02 rad   diverged 0%   (4.1 s)
+  delan@30%      1 s pos RMSE 1.061e-02 rad   diverged 0%   (4.1 s)
+  delan@50%      1 s pos RMSE 9.764e-03 rad   diverged 0%   (4.2 s)
+  delan@100%     1 s pos RMSE 1.049e-02 rad   diverged 0%   (4.1 s)
+wrote results/rollout_metrics.csv and figures/rollout_*.png
+
+real	4m11.857s
+user	13m4.196s
+sys	0m1.476s
+analytical                   main mean RMSE 1.004e-03 rad  (10.0 s)
+analytical                   ood  mean RMSE 5.910e-03 rad  (3.9 s)
+mlp@10%                      main mean RMSE 6.606e-02 rad  (1.0 s)
+mlp@10%                      ood  mean RMSE 3.576e-01 rad  (0.4 s)
+mlp@30%                      main mean RMSE 8.073e-03 rad  (1.0 s)
+mlp@30%                      ood  mean RMSE 2.853e-01 rad  (0.5 s)
+mlp@50%                      main mean RMSE 6.928e-03 rad  (1.0 s)
+mlp@50%                      ood  mean RMSE 2.344e-01 rad  (0.5 s)
+mlp@100%                     main mean RMSE 5.334e-03 rad  (1.0 s)
+mlp@100%                     ood  mean RMSE 2.022e-01 rad  (0.5 s)
+delan@10%                    main mean RMSE 3.533e-03 rad  (3.6 s)
+delan@10%                    ood  mean RMSE 1.027e-02 rad  (2.1 s)
+delan@30%                    main mean RMSE 3.634e-03 rad  (2.7 s)
+delan@30%                    ood  mean RMSE 1.042e-02 rad  (2.1 s)
+delan@50%                    main mean RMSE 3.648e-03 rad  (2.8 s)
+delan@50%                    ood  mean RMSE 9.809e-03 rad  (2.1 s)
+delan@100%                   main mean RMSE 3.715e-03 rad  (2.7 s)
+delan@100%                   ood  mean RMSE 1.022e-02 rad  (2.1 s)
+analytical (classic CT)      main mean RMSE 2.640e-01 rad  (9.6 s)
+analytical (classic CT)      ood  mean RMSE 5.996e-01 rad  (3.9 s)
+mlp@100% (classic CT)        main mean RMSE 3.398e-01 rad  (1.0 s)
+mlp@100% (classic CT)        ood  mean RMSE 6.528e-01 rad  (0.5 s)
+delan@100% (classic CT)      main mean RMSE 1.746e-02 rad  (2.7 s)
+delan@100% (classic CT)      ood  mean RMSE 5.554e-02 rad  (2.1 s)
+PD only                      main mean RMSE 5.110e-02 rad  (1.0 s)
+PD only                      ood  mean RMSE 1.258e-01 rad  (0.3 s)
+wrote results/tracking_demo.mp4
+wrote results/tracking_metrics.csv, tracking_summary.csv and figures/tracking_*.png
+
+real	1m12.704s
+user	2m37.491s
+sys	0m1.192s

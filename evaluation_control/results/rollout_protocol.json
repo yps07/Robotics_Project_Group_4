@@ -1,0 +1,28 @@
+{
+  "horizons_s": [
+    0.5,
+    1.0,
+    2.0
+  ],
+  "rollout_s": 2.0,
+  "start_every_s": 1.0,
+  "episodes_per_dist": 10,
+  "seeds": {
+    "test": 5150,
+    "ood": 6160
+  },
+  "physics_dt": 0.001,
+  "model_step_s": 0.01,
+  "control_dt": 0.01,
+  "newton_iters": {
+    "analytical": 2,
+    "mlp": 10,
+    "delan": 2
+  },
+  "line_search": {
+    "analytical": false,
+    "mlp": true,
+    "delan": false
+  },
+  "integrator": "implicit-in-velocity Euler, tau zero-order hold"
+}
