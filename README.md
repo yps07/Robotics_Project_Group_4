@@ -1,0 +1,309 @@
+# Deep Lagrangian Network for Computed-Torque Tracking of the dm_control Manipulator Arm
+
+Group 4, Robotics (ECE670 / CSE633).
+
+We learn the inverse dynamics of the 4-joint arm of the `dm_control` `manipulator/bring_ball` task in three ways, then compare them in open-loop rollouts and in closed-loop computed-torque tracking:
+
+| Model | What it is | Built by |
+|---|---|---|
+| **Analytical** | Euler–Lagrange model extracted from the MuJoCo model (mass, COM, inertia of each link). Exact on this plant. | Member 2 |
+| **Black-box MLP** | A feed-forward network `(q, q̇, q̈) → τ` with no physics. | Member 3 |
+| **DeLaN** | Deep Lagrangian Network: `τ = M(q)q̈ + c(q,q̇) + g(q) + Dq̇` with `M = LLᵀ + εI` (symmetric positive-definite by construction) and `g = ∂V/∂q`. | Member 4 |
+
+The question: does building the Lagrangian structure into the network buy anything over a black box, in accuracy, data efficiency, extrapolation, and usefulness inside a controller?
+
+**Short answer.** Yes, and most clearly *outside* the training range and when the model is used as a simulator (see [Results](#6-results-and-analysis)).
+
+| Measure | Analytical | DeLaN | MLP |
+|---|---|---|---|
+| One-step torque RMSE, test / OOD (N·m) | 1.7e-16 / 3.1e-16 | 0.0147 / 0.0250 | 0.0440 / 0.450 |
+| 2 s rollouts diverged, in-dist. / OOD | 0 % / 0 % | 0 % / 0 % | 31 % / 92 % |
+| Tracking RMSE, 10 main trajectories (rad) | 1.0e-3 | 3.7e-3 | 5.3e-3 |
+| Tracking RMSE, 4 OOD trajectories (rad) | 5.9e-3 | 1.0e-2 | **0.20** (PD alone: 0.13) |
+| `M(q)` positive-definite (uniform configs) | 100 % | 100 % | 0.1–1.8 % |
+
+All numbers are for 100 % training data and seed 42 unless a fraction is stated.
+
+---
+
+## Contents
+
+1. [Repository layout](#1-repository-layout)
+2. [Setup](#2-setup)
+3. [System and data](#3-system-and-data)
+4. [The three models](#4-the-three-models)
+5. [Evaluation and control](#5-evaluation-and-control)
+6. [Results and analysis](#6-results-and-analysis)
+7. [Reproducing everything](#7-reproducing-everything)
+8. [Presentation and demo videos](#8-presentation-and-demo-videos)
+9. [Limitations](#9-limitations)
+10. [Team and workstreams](#10-team-and-workstreams)
+
+---
+
+## 1. Repository layout
+
+```
+Robotics_Project_Group_4/
+├── README.md                      this file
+├── requirements.txt               single, project-wide dependency list
+├── IROB2026_Project_instructions.pdf
+├── docs/environment_and_data.md   simulator, coordinates, dataset schema
+├── dataset/                       Workstream A: environment, data collection, loader
+├── analytical_euler_lagrange/     Workstream B: analytical model + validation
+├── black_box_mlp/                 Workstream C: MLP baseline (README inside)
+├── delan/                         Workstream D: Deep Lagrangian Network (README inside)
+├── evaluation_control/            Workstream E: rollouts, computed torque, combined evaluation (README inside)
+└── presentation/                  19-slide deck and its build files
+```
+
+Each workstream folder is self-contained and has its own results. Later workstreams only *read* earlier ones; nothing in A–D is modified by E.
+
+## 2. Setup
+
+Python 3.10–3.12 (dm_control does not support newer versions). Developed on Python 3.12 (Linux) and validated on 3.11.9 (Windows).
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+Pinned: `dm_control 1.0.52`, `mujoco 4.0.1`, `numpy 2.4.6`, `torch 2.15.0`, `matplotlib`, `pandas`, `pytest`, `tensorboard`, plus `imageio` and `imageio-ffmpeg` for the demo videos.
+
+On a machine without a display, set `MUJOCO_GL=egl` for rendering. If a sourced ROS installation injects pytest plugins, prefix pytest with `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`.
+
+Quick check that everything works (30 tests: 15 for DeLaN, 15 for Workstream E):
+
+```bash
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 MUJOCO_GL=egl .venv/bin/python -m pytest -q evaluation_control delan
+```
+
+## 3. System and data
+
+**Plant.** The arm of `manipulator/bring_ball`: four hinge joints, all about the axis `[0, −1, 0]`.
+
+| Joint | Range (rad) | Gear (N·m) | Viscous damping (N·m·s/rad) |
+|---|---|---|---|
+| `arm_root` | unlimited (wraps at ±π) | 12 | 2.0 |
+| `arm_shoulder` | ±2.79 | 8 | 1.5 |
+| `arm_elbow` | ±2.79 | 4 | 1.0 |
+| `arm_wrist` | ±2.44 | 2 | 0.5 |
+
+**Reduced, contact-free model.** Inverse dynamics is only well defined for the four arm coordinates, so the data come from a variant of the same MJCF: the finger hinges are removed (finger bodies rigidly attached to the wrist), the gripper tendon and coupling are removed, collision geoms are disabled, and the ball is moved away. Contact count is recorded and required to be zero. Details: [docs/environment_and_data.md](docs/environment_and_data.md).
+
+**Timing.** Physics step 1 ms, control step 10 ms (ten substeps). One sample is taken per control step; each episode is 10 s.
+
+**Dataset** (`dataset/data/`, seed 42, all samples generated by the simulator):
+
+| Split | Rows | Episodes | Purpose |
+|---|---|---|---|
+| train | 20 000 | 40 | fitting |
+| val | 2 000 | 10 | tuning, early stopping |
+| test | 2 000 | 10 | in-distribution evaluation |
+| ood | 2 000 | 10 | out-of-distribution evaluation |
+
+- Excitation: random actions, multi-sines (0.1–1 Hz) and chirps. Training amplitude is 0.35; OOD uses amplitude 0.65 and higher frequencies.
+- Every OOD row has at least one of `q`, `q̇`, `q̈` outside the training min/max. Nothing is fabricated by rescaling.
+- Each row holds `q, q̇, q̈, τ` (the physical actuator force), the normalised action, and episode/time metadata.
+- The MLP input is 13-dimensional: `sin q_root, cos q_root, q_shoulder, q_elbow, q_wrist, q̇[4], q̈[4]`.
+
+**A property that drives the whole study.** The dynamics are *damping-dominated and stiff*. The wrist inertia is tiny (eigenvalues of `M` down to 3e-5 kg·m²) against 0.5 N·m·s/rad of damping, giving a time constant of about 6e-5 s. RMS torque contributions in the data: damping 2.4 N·m (root), inertial 0.6, gravity 0.4, Coriolis 0.01. This affects model identifiability, rollout integration and controller design, as the analysis below shows.
+
+## 4. The three models
+
+### 4.1 Analytical (`analytical_euler_lagrange/`)
+`AnalyticalArm` builds `M(q)`, Coriolis `C(q,q̇)`, gravity `g(q)` and damping from the link masses, centres of mass and inertias read out of the MuJoCo model. It is validated against MuJoCo's own inverse dynamics to about 1e-16 N·m on every joint (`analytical_validation_errors.csv`). It serves both as a reference model and as the ground truth for what DeLaN should recover.
+
+### 4.2 Black-box MLP (`black_box_mlp/`)
+- Architecture selected by a validation-only sweep: 13–256–256–128–4, `tanh`, AdamW (lr 1e-3, weight decay 1e-4), MSE on normalised torques, batch 256, gradient clipping 10, early stopping (max 120 epochs, patience 15).
+- Trained on nested 10 / 30 / 50 / 100 % subsets, seed 42.
+- Torque RMSE (N·m), test / OOD: 10 %: 0.069 / 0.511 · 30 %: 0.050 / 0.423 · 50 %: 0.044 / 0.432 · 100 %: 0.044 / 0.450.
+
+### 4.3 DeLaN (`delan/`)
+- `M(q) = L(q)Lᵀ(q) + εI` with `L` lower-triangular and a softplus diagonal, so `M` is symmetric positive-definite by construction.
+- `V(q)` from a second network; gravity `g = ∂V/∂q` by autograd.
+- Coriolis `c = Ṁq̇ − ½ ∂(q̇ᵀMq̇)/∂q`, with `∂M/∂q` from `torch.func.jacfwd`. Nothing is derived by hand.
+- Learned non-negative diagonal viscous damping `D = softplus(d)`. A Lagrangian alone is conservative and cannot represent dissipation; without `D`, test RMSE is **1.49 N·m (R² = 0.14)** against 0.0147 with it.
+- Inputs are `[sin q, cos q]` (handles root wrapping), raw physical units, float64.
+- Same training subsets, seed and metric code as the MLP, so the comparison is direct. Selected configuration 128×3, `tanh`, weight decay 1e-5 (16-config validation sweep).
+- Forward dynamics is a linear solve: `q̈ = M⁻¹(τ − c − g − Dq̇)`.
+- What it recovers (100 % data, compared with the analytical model): damping to 0.1 %, gravity to 6.8 %, but `M(q)` only to about 33 % (relative Frobenius error). The small elbow/wrist inertias are over-estimated; they change the torque by 0.01–0.03 N·m, the same order as the fit error, so the data barely identify them.
+
+## 5. Evaluation and control
+
+Workstream E ([evaluation_control/](evaluation_control/README.md)) puts all models into identical experiments without modifying any of the others.
+
+**Shared interface** (`models.py`). `inverse_dynamics`, `id_jacobians (∂τ/∂q̈, ∂τ/∂q̇)`, `forward_dynamics`, `implied_mass_matrix`, implemented for 9 models (analytical; MLP and DeLaN at 10/30/50/100 %). Because everything is expressed through inverse dynamics, the same code runs all three.
+
+**Multi-step rollouts** (`rollout.py`).
+- Ground truth: 10 fresh, contiguous 10 s MuJoCo episodes per distribution (new seeds, since the dataset keeps only 27–65 subsampled rows per episode). 90 two-second windows each for in-distribution and OOD excitation, restricted to windows with no joint-limit contact.
+- Models are driven with the recorded torques and compared with MuJoCo at 0.5, 1 and 2 s.
+- *Integrator.* Because the wrist is stiff, explicit integration is unstable. Each step is **implicit in velocity**, as MuJoCo's integrator treats damping: solve `ID(qₙ, vₙ + h·a, a) = τ` for `a`, then `vₙ₊₁ = vₙ + h·a`, `qₙ₊₁ = qₙ + h·vₙ₊₁`, with h = 10 ms. It needs only inverse dynamics. The analytical model run through this scheme gives the integration floor (about 1e-3 rad at 2 s).
+- *Inverting the MLP.* The MLP has no `M` and no forward model, so forward dynamics is a numerical inversion: Newton with a per-sample line search, from three starting points. A rollout counts as diverged if it becomes non-finite or `|q̇| > 50 rad/s`. Statistics excluding diverged rollouts are reported next to a median that counts them as infinite, so excluding failures cannot flatter a model.
+
+**Reference trajectories** (`trajectories.py`, seed 2026). Each lasts 5 s with closed-form `q, q̇, q̈`.
+- *10 main:* 5 Fourier series and 5 quintic minimum-jerk moves. All lie 100 % inside the training range, at least 0.2 rad inside the joint limits, and need at most 70 % of the torque limit.
+- *4 OOD:* faster Fourier and 6-waypoint minimum-jerk trajectories with only 8–67 % of samples inside the training range.
+
+**Computed-torque control** (`computed_torque.py`). `a_cmd = q̈_ref + K_d ė + K_p·wrap(e)`, ω_n = 15 rad/s, ζ = 1, 100 Hz with zero-order hold, torque clipped to the gear limits. Three laws:
+
+| Law | τ |
+|---|---|
+| **sampled** (default) | `ID(q, q̇ + Δt·a_cmd, a_cmd)` |
+| classic | `ID(q, q̇, a_cmd)` |
+| PD only | `2·gear·e + 0.1·gear·ė` (no model) |
+
+The sampled law exists because the elbow and wrist are damping-dominated (M/D of about 1e-3 and 6e-5 s against a 10 ms hold). Within one hold their velocity settles almost immediately, so the classic law's inertial term changes the velocity by `(M/D)·a_cmd` rather than `Δt·a_cmd` and the feedback is largely lost. Evaluating the same inverse dynamics at the velocity the joint should reach by the end of the step fixes this, and reduces to the classic law for inertia-dominated joints.
+
+**Other metrics.** One-step torque error (recomputed and cross-checked against the CSVs of Members 3 and 4), positive-definiteness and accuracy of `M(q)`, timing, tracking RMSE (overall and per joint), max error, velocity RMSE, torque RMS and saturation.
+
+## 6. Results and analysis
+
+Full tables: [evaluation_control/results/summary.md](evaluation_control/results/summary.md). Figures are in `evaluation_control/results/figures/`, `delan/results/` and `black_box_mlp/results/`.
+
+### 6.1 One-step torque prediction
+
+| Model | test RMSE (N·m) | OOD RMSE (N·m) | OOD / test |
+|---|---|---|---|
+| Analytical | 1.7e-16 | 3.1e-16 | – |
+| DeLaN @100 % | 0.0147 | 0.0250 | 1.7× |
+| MLP @100 % | 0.0440 | 0.450 | 10× |
+
+In range the MLP is only about 3× worse than DeLaN. Outside the training range it is 18× worse. R² is above 0.98 for every learned model, so R² alone hides the gap; the error in N·m shows it.
+
+### 6.2 Data efficiency
+
+| Training data | 10 % | 30 % | 50 % | 100 % |
+|---|---|---|---|---|
+| DeLaN test RMSE (N·m) | 0.0144 | 0.0140 | 0.0140 | 0.0147 |
+| MLP test RMSE (N·m) | 0.0690 | 0.0496 | 0.0445 | 0.0440 |
+| DeLaN tracking RMSE, main (rad) | 3.5e-3 | 3.6e-3 | 3.6e-3 | 3.7e-3 |
+| MLP tracking RMSE, main (rad) | 6.6e-2 | 8.1e-3 | 6.9e-3 | 5.3e-3 |
+| MLP rollouts diverged, in-dist. @2 s | 68 % | 41 % | 43 % | 31 % |
+
+DeLaN is flat from 10 % to 100 %; at 10 % data its closed-loop tracking is 19× better than the MLP's. The MLP improves with data, and its OOD error does not improve monotonically (best at 30 %).
+
+*Caveat on the flat curve.* The nested subsets sample rows at random, so even the 10 % subset contains all 40 training episodes. More data adds density along the same trajectories, not new regions of state space. A subset that drops whole episodes would be a stricter test.
+
+### 6.3 Multi-step rollouts (position RMSE vs MuJoCo, median over windows)
+
+| | In-dist. 0.5 / 1 / 2 s (rad) | Diverged @2 s | OOD 0.5 / 1 / 2 s (rad) | Diverged @2 s |
+|---|---|---|---|---|
+| Analytical (integration floor) | 2.1e-4 / 3.3e-4 / 3.7e-4 | 0 % | 1.2e-3 / 1.1e-3 / 1.2e-3 | 0 % |
+| DeLaN | 5.3e-3 / 6.6e-3 / 7.9e-3 | 0 % | 9.3e-3 / 9.8e-3 / 1.0e-2 | 0 % |
+| MLP | 2.2e-2 / 2.9e-2 / 5.1e-2 | 31 % | ∞ | 92 % |
+
+None of DeLaN's 720 rollouts (90 windows × 2 distributions × 4 fractions) diverged. The MLP's OOD median is infinite because more than half of its rollouts diverge. The analytical model confirms the integrator is sound, so the remaining error is attributable to the learned model.
+
+**Why the MLP fails here.** Forward dynamics needs `q̈ = f⁻¹(q, q̇, τ)`. For DeLaN, `τ` is affine in `q̈` with a positive-definite `M`, so the inverse exists, is unique, and takes two Newton iterations. The MLP's implied mass matrix `∂τ/∂q̈` is neither symmetric nor positive-definite (below), so the inverse can have no root, several roots, or a spurious one, and `τ(q̈)` along the solve path is not monotone. Newton with line search and multi-start recovers many cases but not all, and the failures are a property of the model, not the solver.
+
+### 6.4 Computed-torque tracking in MuJoCo
+
+Mean RMSE over trajectories (rad), `sampled` law:
+
+| | 10 main | 4 OOD | main, 0.1 rad initial error |
+|---|---|---|---|
+| Analytical | 1.0e-3 | 5.9e-3 | 1.27e-2 |
+| DeLaN | 3.7e-3 | 1.0e-2 | 1.33e-2 |
+| MLP | 5.3e-3 | 0.20 | 1.42e-2 |
+| PD only | 5.1e-2 | 0.13 | 5.3e-2 |
+| Classic law: analytical / DeLaN / MLP | 0.26 / 0.017 / 0.34 | 0.60 / 0.056 / 0.65 | |
+
+- Computed torque needs only inverse dynamics, so the MLP's inversion problem does not arise. Inside the training range it tracks well (5.3e-3 rad), 10× better than PD.
+- Outside the range the MLP degrades **38×** to 0.20 rad, **worse than PD with no model at all**. DeLaN degrades 2.7×, in line with its 1.7× one-step OOD degradation.
+- A 0.1 rad initial error is dominated by the controller's transient (ω_n = 15 rad/s), so all three models are within about 12 % of each other; the model matters most for steady tracking.
+- The actuators did not saturate in any main-set run (saturation fraction 0).
+
+### 6.5 The computed-torque law matters on this plant
+Under the classic law even the exact analytical model tracks at 0.26 rad, which is **5× worse than PD**. The error grows from root to wrist as M/D shrinks (0.07 → 0.20 → 0.25 → 0.40 rad), exactly the signature of the damping-dominated joints losing feedback. DeLaN under the classic law does far better (0.017 rad), but that is a lucky side effect of over-estimating the tiny elbow/wrist inertias, not accuracy: under the sampled law the exact model is best.
+
+### 6.6 Positive-definiteness of `M(q)`
+
+Fraction of positive-definite matrices, 10 000 uniform configurations within the joint limits (and on the test split):
+
+| | uniform | test | max asymmetry (relative) | median relative error vs analytical M |
+|---|---|---|---|---|
+| DeLaN (all fractions) | **100 %** | **100 %** | 0 | 0.60–0.64 |
+| MLP, implied `∂τ/∂q̈` | 0.1–1.8 % | 0–10.6 % | about 1.4 | 2.7–3.8 |
+
+DeLaN's 56 000 checked matrices were all positive-definite, Cholesky succeeded on all, and the minimum eigenvalue is 1.3e-3. The MLP has no `M`; its implied `∂τ/∂q̈` is indefinite almost everywhere and strongly non-symmetric. The guarantee is structural, not learned, and it is what makes DeLaN usable as a simulator.
+
+### 6.7 Computational cost (single state, CPU)
+
+| | inverse dynamics | implicit rollout step | controller step |
+|---|---|---|---|
+| MLP | 0.14 ms | 18 ms (multi-start Newton) | 0.15 ms |
+| Analytical | 3.2 ms | 2.9 ms | 3.0 ms |
+| DeLaN | 5.2 ms | 21.5 ms | 4.7 ms |
+
+All fit inside the 10 ms control period for computed torque. Absolute times vary by machine; the ordering is stable. The MLP is cheapest per call; DeLaN pays for the autograd Jacobians that give it its structure.
+
+### 6.8 Key takeaways
+
+1. **Structure makes the learned model usable as a simulator.** DeLaN never diverged (0 of 720 rollouts); the MLP diverged in 31–68 % of in-range and 92–100 % of OOD rollouts.
+2. **Inside the training range, a black box is enough for control.** The MLP's computed-torque tracking is within 1.5× of DeLaN's.
+3. **Outside the range, structure matters.** MLP tracking degrades 38× and falls behind a model-free PD controller; DeLaN degrades 2.7×.
+4. **DeLaN is data-efficient** (flat from 10 %); the MLP is not (19× worse tracking at 10 %).
+5. **Positive-definite `M` is guaranteed for DeLaN, not for the MLP** (100 % vs under 2 % in general).
+6. **Accurate torque does not imply accurate physics.** DeLaN's torque error is tiny, yet its `M(q)` is about 33 % off, because elbow/wrist inertia is barely excited. The structure keeps it well-posed; the data limit its accuracy.
+7. **Controller design depends on the plant.** The classic computed-torque law fails even with a perfect model on this damping-dominated arm; the sampled law fixes it.
+
+## 7. Reproducing everything
+
+From the repository root (CPU is enough):
+
+```bash
+# Workstream A: dataset (already generated in dataset/data/)
+python -m dataset.collect_data && python -m dataset.validate_data
+
+# Workstream B: analytical model validation
+python analytical_euler_lagrange/validate_analytical.py
+
+# Workstream C: MLP baseline
+python -m black_box_mlp.tune_mlp          # validation-only sweep
+python -m black_box_mlp.train_mlp         # 10/30/50/100 % training + test/OOD metrics
+
+# Workstream D: DeLaN (about 40 min including the sweep)
+bash delan/run_experiments.sh             # add --skip-tuning to skip the sweep
+
+# Workstream E: rollouts, tracking, combined evaluation (about 15–20 min)
+bash evaluation_control/run_all.sh --video
+```
+
+Each workstream's own README lists its individual steps and outputs. The Workstream E steps and the figure each produces:
+
+| Command | Produces |
+|---|---|
+| `python -m evaluation_control.trajectories` | `trajectories_{main,ood}.npz`, `reference_trajectories_*.png` |
+| `python -m evaluation_control.rollout` (`--quick`, `--substeps 10`) | `rollout_metrics.csv`, `rollout_error_{test,ood}.png`, `rollout_example_*.png` |
+| `python -m evaluation_control.tracking_experiment` (`--video`, `--offset 0.1`, `--quick`) | `tracking_metrics.csv`, `tracking_summary.csv`, `tracking_rmse.png`, `tracking_traces_*.png`, demo videos |
+| `python -m evaluation_control.evaluate` | `summary.md`, `one_step_errors.csv`, `mass_matrix_pd.csv`, `timing.csv`, `data_efficiency.png`, `mass_matrix_pd.png` |
+
+Everything is seeded (data 42, rollout ground truth 5150/6160, trajectories 2026, models 42), so a rerun reproduces the reported numbers. Checkpoints for all models are included in the repository folders, so Workstream E can be re-run without retraining.
+
+## 8. Presentation and demo videos
+
+- **Slides:** `presentation/Group4_DeLaN_Project.pptx`, 19 slides with native charts, speaker notes and an embedded tracking video. `presentation/build_deck.js` rebuilds it (requires Node and `pptxgenjs`, not installed in the repo). The deck was checked by a validator and a custom renderer, not opened in PowerPoint itself.
+- **Demo videos:** `evaluation_control/results/tracking_demo.mp4` (main trajectory) and `tracking_demo_ood.mp4` (OOD trajectory) show the analytical, MLP and DeLaN controllers tracking the same reference in MuJoCo.
+
+## 9. Limitations
+
+- **Single seed (42).** No variance across training seeds, so small differences (e.g. DeLaN 3.5e-3 vs 3.7e-3) are not significant.
+- **Flat data-efficiency curve** for DeLaN is partly an artefact of the subsets containing all 40 episodes (§6.2).
+- **Contact-free arm only.** The gripper and ball are removed, so grasping dynamics are not covered. Rollout windows exclude joint-limit contact, which no model represents.
+- **No energy-drift study** for DeLaN rollouts, and no noisy-measurement experiment (the dataset has no measurement noise; accelerations are exact).
+- **Rollout integrator** is h = 10 ms implicit Euler, which sets a floor of about 1e-3 rad at 2 s. With h = 1 ms (`--substeps 10`) the floor is about 2e-5 rad, but the MLP then diverges at the first substep after each torque change, since it is asked for wrist accelerations of 1e3–1e4 rad/s² that the 10 ms-sampled data never contain.
+- **Comparison is one MLP architecture** chosen by a modest sweep; a much larger or differently regularised MLP might narrow the gap, though it would still lack the structural `M`.
+- **Numbers vary with the machine** only for timings; accuracy results are deterministic given the seeds.
+
+## 10. Team and workstreams
+
+| Member | Workstream | Deliverables |
+|---|---|---|
+| 1 | A: environment and dataset | `dataset/`, `docs/environment_and_data.md` |
+| 2 | B: analytical Euler–Lagrange model | `analytical_euler_lagrange/` |
+| 3 | C: black-box MLP baseline | `black_box_mlp/` |
+| 4 | D: Deep Lagrangian Network | `delan/` |
+| 5 | E: rollouts, computed-torque control, combined evaluation | `evaluation_control/`, `presentation/` |
+
+Per-workstream detail: [black_box_mlp/README.md](black_box_mlp/README.md) · [delan/README.md](delan/README.md) · [evaluation_control/README.md](evaluation_control/README.md).
