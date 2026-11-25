@@ -54,7 +54,7 @@ Robotics_Project_Group_4/
 ├── black_box_mlp/                 Workstream C: MLP baseline (README inside)
 ├── delan/                         Workstream D: Deep Lagrangian Network (README inside)
 ├── evaluation_control/            Workstream E: rollouts, computed torque, combined evaluation (README inside)
-└── presentation/                  19-slide deck and its build files
+└── presentation/                  31-slide deck and its build files
 ```
 
 Each workstream folder is self-contained and has its own results. Later workstreams only *read* earlier ones; nothing in A–D is modified by E.
@@ -283,7 +283,7 @@ Everything is seeded (data 42, rollout ground truth 5150/6160, trajectories 2026
 
 ## 8. Presentation and demo videos
 
-- **Slides:** `presentation/Group4_DeLaN_Project.pptx`, 19 slides with native charts, speaker notes and an embedded tracking video. `presentation/build_deck.js` rebuilds it (requires Node and `pptxgenjs`, not installed in the repo). The deck was checked by a validator and a custom renderer, not opened in PowerPoint itself.
+- **Slides:** `presentation/Group4_DeLaN_Project.pptx`, 31 slides in four parts (the project, the five-step methodology with results per step, results side by side, final thoughts), with native charts, codebase plots, speaker notes and an embedded tracking video. `presentation/build_deck.js` rebuilds it (requires Node and `pptxgenjs`, not installed in the repo). The deck was checked by a validator and a custom renderer, not opened in PowerPoint itself.
 - **Demo videos:** `evaluation_control/results/tracking_demo.mp4` (main trajectory) and `tracking_demo_ood.mp4` (OOD trajectory) show the analytical, MLP and DeLaN controllers tracking the same reference in MuJoCo.
 
 ## 9. Limitations

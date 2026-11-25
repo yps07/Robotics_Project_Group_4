@@ -80,3 +80,18 @@ ae = ArmDynamicsEnv()
 set_arm_state(ae.physics, np.array([0.6, -0.9, 1.3, 0.7]), np.zeros(4)); ae.physics.forward()
 plt.imsave(os.path.join(OUT, "arm.png"), ae.physics.render(480, 640, camera_id=0))
 print("figures written to", OUT)
+
+# 5. training data vs OOD data (speed vs acceleration) for two joints
+tr = np.load("dataset/data/train.npz"); od = np.load("dataset/data/ood.npz")
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+for ax, j, name in ((axes[0], 1, "Shoulder joint"), (axes[1], 3, "Wrist joint")):
+    ax.scatter(od["qdot"][:, j], od["qddot"][:, j], s=6, color="#C0392B", alpha=.45,
+               label="Out-of-range test data (OOD)", rasterized=True)
+    ax.scatter(tr["qdot"][:, j], tr["qddot"][:, j], s=4, color="#4A5868", alpha=.30,
+               label="Training data", rasterized=True)
+    ax.set_title(name, loc="left", fontweight="bold"); ax.set_xlabel("Joint speed (rad/s)"); ax.grid(alpha=.25)
+axes[0].set_ylabel("Joint acceleration (rad/s²)")
+lg = axes[0].legend(frameon=False, loc="upper left", markerscale=4)
+for h in lg.legend_handles:
+    h.set_alpha(1)
+fig.tight_layout(); fig.savefig(os.path.join(OUT, "ood_scatter.png"), dpi=200); plt.close(fig)
